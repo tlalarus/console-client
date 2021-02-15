@@ -14,23 +14,12 @@ mutex mtx;
 CCamClient* client;
 
 
-#define MODE_MAIN 0
-#define MODE_MENU 1
-#define MODE_LOG  2
+#define MODE_INTRO 0
+#define MODE_ACQUI 1
 #define MODE_QUIT 3
-
-#define KEY_W_UP 119
-#define KEY_S_DW 115
 
 #define KEY_SP 32 // space(choose)
 #define KEY_ESC 27 // esc
-
-
-//#define KEY_Q 113 // Cam stop
-//#define KEY_I 105 // Show current cam param summary
-//#define KEY_S 115 // Save current cam param as XML.
-//#define KEY_D 100 // Set to default cam param.
-//#define KEY_H 104 // Show command key information.
 
 thread g_cam_thread;
 thread g_key_thread;
@@ -38,39 +27,32 @@ thread g_key_thread;
 
 // thread func
 void OnCamFrame();
-void OnKey(int curmode);
-
-// choose key
-void GoToXY(int x, int y);
 
 // display
-int DispMain();
-int DispMenuMode();
-int DispLogMode();
+int IntroMode();
+int AcquisitionMode();
+int QuitMode();
+
 
 int main()
 {
-
 	// resize console window 
 	system("mode con cols=80 lines=30 | title Console Client");
 
-	int mode = MODE_MAIN;
+	int mode = MODE_INTRO;
 	bool b_quit = false;
 	while (true)
 	{
 		switch (mode)
 		{
-		case MODE_MAIN:
-			mode = DispMain();
+		case MODE_INTRO:
+			mode = IntroMode();
 			break;
-		case MODE_LOG:
-			mode = DispLogMode();
-			break;
-		case MODE_MENU:
-			mode = DispMenuMode();
+		case MODE_ACQUI:
+			mode = AcquisitionMode();
 			break;
 		case MODE_QUIT:
-			b_quit = true;
+			b_quit = QuitMode();
 			break;
 		default:
 			break;
@@ -81,20 +63,22 @@ int main()
 			break;
 	}
 	
-	
 
-	// key event on logmode.
-	g_key_thread = thread(OnKey, MODE_LOG);
-
+	//g_key_thread.join();
 	g_cam_thread.join();
-	g_key_thread.join();
 
+	printf("done.\n");
 	system("pause");
 	return 0;
 }
 
+int QuitMode()
+{
+	client->StopCamera();
+	return true;
+}
 
-int DispLogMode()
+int AcquisitionMode()
 {
 	if (client == NULL)
 	{
@@ -126,17 +110,20 @@ int DispLogMode()
 		// thread is not NULL
 	}
 
+	// Wait key
+	int next_mode = MODE_ACQUI;
+
 	while (true)
 	{
 		int key = _getch();
 		if (KEY_ESC == key)
 		{
-			
-			return MODE_MENU;
+			next_mode = MODE_QUIT;
+			break;
 		}
 	}
 
-	return 100;
+	return next_mode;
 }
 
 void OnCamFrame()
@@ -152,109 +139,7 @@ void OnCamFrame()
 	}
 }
 
-void OnKey(int curmode)
-{
-	// On camera running(log mode)
-
-	while (true)
-	{
-		int key = _getch();
-		//cout << key << endl;
-
-		if (curmode == MODE_MAIN)
-		{
-			if (KEY_SP == key)
-			{
-				DispLogMode();
-			}
-		}
-		else if (curmode == MODE_LOG)
-		{
-			if (KEY_ESC == key)
-			{
-				// go to menu mode
-				client->PauseCamera();
-				DispMenuMode();
-			}
-		}
-		else if (curmode == MODE_MENU)
-		{
-			if (KEY_ESC == key)
-			{
-				// go to log mode
-				client->StartCamera();
-				DispLogMode();
-			}
-		}
-		
-
-	}
-}
-
-void GoToXY(int x, int y)
-{
-	HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-	COORD pos;
-	pos.X = x;
-	pos.Y = y;
-	SetConsoleCursorPosition(consoleHandle, pos);
-}
-
-int DispMenuMode()
-{
-	int x = 2;
-	int y = 1;
-
-	system("cls");
-
-	GoToXY(x,y);
-	printf("> Save capture image (.bmp)");
-	GoToXY(x-2, y+1);
-	printf("Stop camera");
-	GoToXY(x-2, y+2);
-	printf("Display current setting summary");
-	GoToXY(x-2, y+3);
-	printf("Control exposure");
-	GoToXY(x-2, y+4);
-	printf("Control gain");
-	GoToXY(x-2, y+5);
-	printf("Set to default setting");
-
-	while (true)
-	{
-		int key = _getch();
-		
-		if (KEY_W_UP == key)
-		{
-			if (y > 1)
-				GoToXY(x - 2, y);
-			{
-				printf(" ");
-				GoToXY(x - 2, --y);
-				printf(">");
-			}
-		}
-		else if (KEY_S_DW == key)
-		{
-			if (y < 6)
-			{
-				GoToXY(x - 2, y);
-				printf(" ");
-				GoToXY(x - 2, ++y);
-				printf(">");
-			}
-		}
-		else if (KEY_SP == key)
-		{
-			return y - 1; // 0=capture, 1=setting summary
-		}
-
-	}
-
-
-}
-
-int DispMain()
+int IntroMode()
 {
 	system("cls");
 	printf("\n\n\n\n");
@@ -265,7 +150,7 @@ int DispMain()
 	printf("        #####  #   #  #   #        #    #####  #####  #   #  \n");
 	printf("\n\n");
 
-	printf("> start");
+	printf("Press SPACEBAR");
 
 	while (true)
 	{
@@ -277,9 +162,5 @@ int DispMain()
 		}
 	}
 
-	return MODE_LOG;
+	return MODE_ACQUI;
 }
-
-
-
-
